@@ -1,34 +1,82 @@
-/* -*- mode: c; c-file-style: "openbsd" -*- */
-/*
- * Copyright (c) 2014 Henri Buyse <henri.buyse@gmail.com>
+/**
+ * @file netlogging.h
+ * @author hbuyse
+ * @date 08/06/2017
  *
- * Permission to use, copy, modify, and/or distribute this software for any
- * purpose with or without fee is hereby granted, provided that the above
- * copyright notice and this permission notice appear in all copies.
- *
- * THE SOFTWARE IS PROVIDED "AS IS" AND THE AUTHOR DISCLAIMS ALL WARRANTIES
- * WITH REGARD TO THIS SOFTWARE INCLUDING ALL IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS. IN NO EVENT SHALL THE AUTHOR BE LIABLE FOR
- * ANY SPECIAL, DIRECT, INDIRECT, OR CONSEQUENTIAL DAMAGES OR ANY DAMAGES
- * WHATSOEVER RESULTING FROM LOSS OF USE, DATA OR PROFITS, WHETHER IN AN
- * ACTION OF CONTRACT, NEGLIGENCE OR OTHER TORTIOUS ACTION, ARISING OUT OF
- * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
+ * @brief  Functions that reports to the user's devices
  */
 
-#ifndef _BOOTSTRAP_H
-#define _BOOTSTRAP_H
 
-#if HAVE_CONFIG_H
-#  include <config.h>
+#ifndef __NETLOGGING_H__
+#define __NETLOGGING_H__
+
+#include <stdint.h>   // int8_t, int32_t
+
+#ifdef __cplusplus
+extern "C" {
 #endif
 
-#include "log.h"
-
-#include <stdlib.h>
-
-/* TODO:5001 Declare here functions that you will use in several files. Those
- * TODO:5001 functions should not be prefixed with `static` keyword. All other
- * TODO:5001 functions should.
+/**
+ * \brief      Send a message through 
+ *
+ * \param      l     level
+ * \param      f     { parameter_description }
+ * \param      ...   { parameter_description }
+ *
+ * \return     { description_of_the_return_value }
  */
+#define NETLOGG(l, f, ...)  netlogg_send(l, __DATE__, __TIME__, __FILE__, __LINE__, __FUNCTION__, f, __VA_ARGS__)
 
+
+typedef enum Netlogging_lvl
+{
+    NETLOGG_CRIT = 0,
+    NETLOGG_ERROR,
+    NETLOGG_WARN,
+    NETLOGG_INFO,
+    NETLOGG_DEBUG,
+    NETLOGG_LVLS
+} Netlogging_lvl ;
+
+/**
+ * \brief      Initiate the logging system
+ *
+ * \param      progname  The program name
+ * \param[in]  dft_lvl   The default level
+ *
+ * \return     Error code
+ */
+int8_t netlogg_init(char* progname, Netlogging_lvl dft_lvl);
+
+/**
+ * \brief      Send a message to all connected clients
+ *
+ * \param[in]  lvl        The level
+ * \param      format     The format
+ * \param[in]  ...        List of variable
+ *
+ * \return     Error code
+ */
+int8_t netlogg_send(Netlogging_lvl lvl, const char* date, const char* time, const char* file, const int32_t lineno, const char* function, char* format, ...);
+
+/**
+ * \brief      Change the displayed logging level
+ *
+ * \param[in]  new_lvl  The new logging level
+ *
+ * \return     Error code
+ */
+int8_t netlogg_change_loglevel(Netlogging_lvl new_lvl);
+
+/**
+ * \brief      Get the number of connected clients
+ *
+ * \return     Number of connected clients to the logger
+ */
+int32_t netlogg_nb_connected_clients(void);
+
+#ifdef __cplusplus
+}
 #endif
+
+#endif          // __NETLOGGING_H__
