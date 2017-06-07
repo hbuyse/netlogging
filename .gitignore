@@ -1,33 +1,93 @@
-*~
-*.o
-*.lo
-*.a
-*.la
-/build*/
 
-# autotools stuff
-/m4/lt*.m4
-/m4/libtool.m4
+# Created by https://www.gitignore.io/api/c,autotools
+
+### Autotools ###
+# http://www.gnu.org/software/automake
+
+Makefile.in
+/ar-lib
+/mdate-sh
+/py-compile
+/test-driver
+/ylwrap
+
+# http://www.gnu.org/software/autoconf
+
+/autom4te.cache
+/autoscan.log
+/autoscan-*.log
 /aclocal.m4
-/ltmain.sh
-/install-sh
+/compile
 /config.guess
 /config.h.in
 /config.sub
-/autom4te.cache/
-/compile
 /configure
+/configure.scan
 /depcomp
+/install-sh
 /missing
-/test-driver
+/stamp-h1
 
-# automake
-/ar-lib
-Makefile.in
+# https://www.gnu.org/software/libtool/
 
-# cscope and other tags
-/cscope.*
-/GPATH
-/GRTAGS
-/GSYMS
-/GTAGS
+/ltmain.sh
+
+# http://www.gnu.org/software/texinfo
+
+/texinfo.tex
+
+### C ###
+# Prerequisites
+*.d
+
+# Object files
+*.o
+*.ko
+*.obj
+*.elf
+
+# Linker output
+*.ilk
+*.map
+*.exp
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Libraries
+*.lib
+*.a
+*.la
+*.lo
+
+# Shared objects (inc. Windows DLLs)
+*.dll
+*.so
+*.so.*
+*.dylib
+
+# Executables
+*.exe
+*.out
+*.app
+*.i*86
+*.x86_64
+*.hex
+
+# Debug files
+*.dSYM/
+*.su
+*.idb
+*.pdb
+
+# Kernel Module Compile Results
+*.mod*
+*.cmd
+.tmp_versions/
+modules.order
+Module.symvers
+Mkfile.old
+dkms.conf
+
+# End of https://www.gitignore.io/api/c,autotools
