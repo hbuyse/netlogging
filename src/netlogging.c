@@ -6,14 +6,8 @@
  * @brief  Functions that reports to the user's devices
  */
 
-
-#ifndef __NETLOGGING_H__
-#define __NETLOGGING_H__
-
-#include <stdint.h>   // int8_t
-
-
 #include "netlogging.h"
+
 
 /**
  * \brief      Initiate the logging system
@@ -23,10 +17,14 @@
  *
  * \return     Error code
  */
-int8_t netlogg_init(char* progname, Netlogging_lvl dft_lvl)
+int8_t netlogg_init(char            *progname,
+                    Netlogging_lvl  dft_lvl
+                    )
 {
-    return 0;
+    return (0);
 }
+
+
 
 /**
  * \brief      Send a message to all connected clients
@@ -37,10 +35,20 @@ int8_t netlogg_init(char* progname, Netlogging_lvl dft_lvl)
  *
  * \return     Error code
  */
-int8_t netlogg_send(Netlogging_lvl lvl, const char* date, const char* time, const char* file, const int32_t lineno, const char* function, char* format, ...)
+int8_t netlogg_send(Netlogging_lvl  lvl,
+                    const char      *date,
+                    const char      *time,
+                    const char      *file,
+                    const int32_t   lineno,
+                    const char      *function,
+                    char            *format,
+                    ...
+                    )
 {
-    return 0;
+    return (0);
 }
+
+
 
 /**
  * \brief      Change the displayed logging level
@@ -51,8 +59,10 @@ int8_t netlogg_send(Netlogging_lvl lvl, const char* date, const char* time, cons
  */
 int8_t netlogg_change_loglevel(Netlogging_lvl new_lvl)
 {
-    return 0;
+    return (0);
 }
+
+
 
 /**
  * \brief      Get the number of connected clients
@@ -61,5 +71,5 @@ int8_t netlogg_change_loglevel(Netlogging_lvl new_lvl)
  */
 int32_t netlogg_nb_connected_clients(void)
 {
-    return 0;
+    return (0);
 }
