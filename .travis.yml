@@ -1,0 +1,21 @@
+language: c
+
+notifications:
+  email: false
+
+sudo: required
+
+dist: trusty
+
+compiler:
+  - clang
+  - gcc
+
+os:
+  - linux
+  - osx
+
+script:
+  - ./configure --prefix=/tmp/
+  - make
+  - make install
