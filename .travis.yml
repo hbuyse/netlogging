@@ -16,6 +16,7 @@ os:
   - osx
 
 script:
+  - ./autogen.sh
   - ./configure --prefix=/tmp/
   - make
   - make install
