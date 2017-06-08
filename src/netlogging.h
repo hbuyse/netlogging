@@ -1,9 +1,7 @@
 /**
  * @file netlogging.h
  * @author hbuyse
- * @date 08/06/2017
- *
- * @brief  Functions that reports to the user's devices
+ * @date 07/06/2017
  */
 
 
@@ -11,6 +9,7 @@
 #define __NETLOGGING_H__
 
 #include <stdint.h>          // int8_t, int32_t
+#include <stdio.h>           // vfprintf
 
 #ifdef __cplusplus
 extern "C" {
@@ -26,7 +25,7 @@ extern "C" {
  *
  * \return     { description_of_the_return_value }
  */
-#define NETLOGG(l, f, ...) netlogg_send(l, __DATE__, __TIME__, __FILE__, __LINE__, __FUNCTION__, f, __VA_ARGS__)
+#define NETLOGG(...) netlogg_send(__DATE__, __TIME__, __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__)
 
 
 typedef enum Netlogging_lvl {
@@ -42,35 +41,37 @@ typedef enum Netlogging_lvl {
 /**
  * \brief      Initiate the logging system
  *
- * \param      progname  The program name
+ * \param[in]  progname  The program name
+ * \param[in]  port      The port for the TCP interface
  * \param[in]  dft_lvl   The default level
  *
  * \return     Error code
  */
-int8_t netlogg_init(char *progname, Netlogging_lvl dft_lvl);
+int8_t netlogg_init(const char *progname, uint16_t port, Netlogging_lvl dft_lvl);
 
+void netlogg_start(void);
 
 /**
  * \brief      Send a message to all connected clients
  *
- * \param[in]  lvl        The logging level
  * \param[in]  date       The date
  * \param[in]  time       The time
  * \param[in]  file       The file
  * \param[in]  lineno     The line number
  * \param[in]  function   The function
+ * \param[in]  lvl        The logging level
  * \param      format     The format
  * \param[in]  ...        List of variable for the format
  *
  * \return     Error code
  */
-int8_t netlogg_send(Netlogging_lvl  lvl,
-                    const char      *date,
-                    const char      *time,
-                    const char      *file,
-                    const int32_t   lineno,
-                    const char      *function,
-                    char            *format,
+int8_t netlogg_send(const char              *date,
+                    const char              *time,
+                    const char              *file,
+                    const int32_t           lineno,
+                    const char              *function,
+                    const Netlogging_lvl    lvl,
+                    const char              *format,
                     ...);
 
 
@@ -78,10 +79,8 @@ int8_t netlogg_send(Netlogging_lvl  lvl,
  * \brief      Change the displayed logging level
  *
  * \param[in]  new_lvl  The new logging level
- *
- * \return     Error code
  */
-int8_t netlogg_change_loglevel(Netlogging_lvl new_lvl);
+void netlogg_change_loglevel(Netlogging_lvl new_lvl);
 
 
 /**
