@@ -368,48 +368,51 @@ int8_t netlogg_send(const char              *date,
                     ...
                     )
 {
+    internal_buff internal_msg = {
+        .lvl = lvl,
+        .buff = {0}
+    };
     ssize_t     send_bytes          = -1;
-    char        buff[BUFF_SIZE_MAX] = {0};
     int         w = -1;
     va_list     ap;
 
 
     // Add the traces informations
-    w = snprintf(buff, sizeof(buff), "%s %s - %s:%d - %s - ", date, time, file, lineno, function);
+    w = snprintf(internal_msg.buff, sizeof(internal_msg.buff), "%s %s - %s:%d - %s - ", date, time, file, lineno, function);
 
     // Add the level in the traces
     switch ( lvl )
     {
         case NETLOGG_CRIT:
-            w   += snprintf(buff + w, sizeof(buff) - w, "\033[31mCRIT\033[0m - ");
+            w   += snprintf(internal_msg.buff + w, sizeof(internal_msg.buff) - w, "\033[31mCRIT\033[0m - ");
             break;
 
         case NETLOGG_ERROR:
-            w   += snprintf(buff + w, sizeof(buff) - w, "\033[31mERROR\033[0m - ");
+            w   += snprintf(internal_msg.buff + w, sizeof(internal_msg.buff) - w, "\033[31mERROR\033[0m - ");
             break;
 
         case NETLOGG_WARN:
-            w   += snprintf(buff + w, sizeof(buff) - w, "\033[33mWARN\033[0m - ");
+            w   += snprintf(internal_msg.buff + w, sizeof(internal_msg.buff) - w, "\033[33mWARN\033[0m - ");
             break;
 
         case NETLOGG_INFO:
-            w   += snprintf(buff + w, sizeof(buff) - w, "\033[32mINFO\033[0m - ");
+            w   += snprintf(internal_msg.buff + w, sizeof(internal_msg.buff) - w, "\033[32mINFO\033[0m - ");
             break;
 
         case NETLOGG_DEBUG:
-            w   += snprintf(buff + w, sizeof(buff) - w, "DEBUG - ");
+            w   += snprintf(internal_msg.buff + w, sizeof(internal_msg.buff) - w, "DEBUG - ");
             break;
 
         default:
-            w   += snprintf(buff + w, sizeof(buff) - w, "\033[31mUNKNOWN_LVL\033[0m - ");
+            w   += snprintf(internal_msg.buff + w, sizeof(internal_msg.buff) - w, "\033[31mUNKNOWN_LVL\033[0m - ");
     }
 
     // Beginning of the varibale list
     va_start(ap, format);
-    w   += vsnprintf(buff + w, sizeof(buff) - w, format, ap);
+    w   += vsnprintf(internal_msg.buff + w, sizeof(internal_msg.buff) - w, format, ap);
     va_end(ap);
 
-    w   += snprintf(buff + w, sizeof(buff) - w, "\n");
+    w   += snprintf(internal_msg.buff + w, sizeof(internal_msg.buff) - w, "\n");
 
     // Check if we have to send the message
     if ( lvl <= gLvl )
@@ -417,7 +420,7 @@ int8_t netlogg_send(const char              *date,
         if ( netlogg_send_fd != -1 )
         {
             // Send to a connected client
-            send_bytes = send(netlogg_send_fd, buff, w, 0);
+            send_bytes = send(netlogg_send_fd, &internal_msg, sizeof(internal_msg), 0);
 
             if ( send_bytes == -1 )
             {
@@ -425,7 +428,7 @@ int8_t netlogg_send(const char              *date,
             }
         }
 
-        fprintf( (lvl < NETLOGG_INFO) ? stdout : stderr, "%s", buff);
+        fprintf( (lvl < NETLOGG_INFO) ? stdout : stderr, "%s", internal_msg.buff);
     }
 
     return (0);
@@ -493,6 +496,7 @@ static void netlogg_handle_new_connection(struct epoll_fd_ctx   *p,
         {
             // Update epoll context
             netlogger_ctx[i].fd         = new_fd;
+            netlogger_ctx[i].lvl        = NETLOGG_DEBUG;
             netlogger_ctx[i].ipv4_addr  = strdup(inet_ntoa(remote_sockaddr.sin_addr) );
 
             getnameinfo( (const struct sockaddr *) &remote_sockaddr, sizeof(remote_sockaddr), netlogger_ctx[i].hostname,
@@ -630,33 +634,35 @@ static void netlogg_send_to_all_connected_clients(struct epoll_fd_ctx   *p,
 
     if ( events & EPOLLIN )
     {
-        char     buff[BUFF_SIZE_MAX] = {0};
+        internal_buff internal_msg;
 
 
         // Lecture des événements notifiés
-        recv_size = recv(p->fd, buff, sizeof(buff), 0);
+        recv_size = recv(p->fd, &internal_msg, sizeof(internal_msg), 0);
 
         if ( recv_size == -1 )
         {
-            NETLOGG(NETLOGG_ERROR, "%s - recvfrom: %m\n", __FUNCTION__);
+            NETLOGG(NETLOGG_ERROR, "%s - recv: %m\n", __FUNCTION__);
         }
         else if ( recv_size == 0 )
-        {}
+        {
+            assert(recv_size == 0);
+        }
         else
         {
             // Parse all possible communication socket
             for ( i = EPOLL_FD_SEND0; i <= EPOLL_FD_SEND9; i++ )
             {
-                if ( netlogger_ctx[i].fd != -1 )
+                if ( (netlogger_ctx[i].fd != -1) && (internal_msg.lvl <= netlogger_ctx[i].lvl))
                 {
                     // Send to a connected client
-                    send_size = send(netlogger_ctx[i].fd, buff, recv_size, 0);
+                    send_size = send(netlogger_ctx[i].fd, internal_msg.buff, strlen(internal_msg.buff), 0);
 
                     if ( send_size == -1 )
                     {
                         NETLOGG(NETLOGG_ERROR, "%s - send: %m\n", __FUNCTION__);
                     }
-                    else if ( send_size != recv_size )
+                    else if ( send_size != strlen(internal_msg.buff) )
                     {
                         NETLOGG(NETLOGG_ERROR, "%s - send: send_size (%zd) != recv_size (%zd)\n", __FUNCTION__, send_size, recv_size);
                     }
@@ -745,7 +751,7 @@ static void handle_loglevel_crit(struct epoll_fd_ctx    *p,
 {
     NETLOGG(NETLOGG_INFO, "Changing loglevel to \033[1mCRIT\033[0m (from %s)", p->ipv4_addr);
 
-    netlogg_change_loglevel(NETLOGG_CRIT);
+    p->lvl = NETLOGG_CRIT;
 }
 
 
@@ -757,7 +763,7 @@ static void handle_loglevel_error(struct epoll_fd_ctx   *p,
 {
     NETLOGG(NETLOGG_INFO, "Changing loglevel to \033[1mERROR\033[0m (from %s)", p->ipv4_addr);
 
-    netlogg_change_loglevel(NETLOGG_ERROR);
+    p->lvl = NETLOGG_ERROR;
 }
 
 
@@ -769,7 +775,7 @@ static void handle_loglevel_info(struct epoll_fd_ctx    *p,
 {
     NETLOGG(NETLOGG_INFO, "Changing loglevel to \033[1mINFO\033[0m (from %s)", p->ipv4_addr);
 
-    netlogg_change_loglevel(NETLOGG_INFO);
+    p->lvl = NETLOGG_INFO;
 }
 
 
@@ -781,7 +787,7 @@ static void handle_loglevel_warn(struct epoll_fd_ctx    *p,
 {
     NETLOGG(NETLOGG_INFO, "Changing loglevel to \033[1mWARN\033[0m (from %s)", p->ipv4_addr);
 
-    netlogg_change_loglevel(NETLOGG_WARN);
+    p->lvl = NETLOGG_WARN;
 }
 
 
@@ -793,7 +799,7 @@ static void handle_loglevel_debug(struct epoll_fd_ctx   *p,
 {
     NETLOGG(NETLOGG_INFO, "Changing loglevel to \033[1mDEBUG\033[0m (from %s)", p->ipv4_addr);
 
-    netlogg_change_loglevel(NETLOGG_DEBUG);
+    p->lvl = NETLOGG_DEBUG;
 }
 
 

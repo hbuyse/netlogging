@@ -60,23 +60,27 @@ typedef enum {
     EPOLL_FD_MAX,
 } epoll_evt_t;
 
+typedef struct {
+    Netlogging_lvl lvl;          ///< Niveau de log du buffer a envoyer
+    char buff[BUFF_SIZE_MAX];          ///< Buffer a envoyer
+} internal_buff;
 
 /**
  * \struct REC_fdContext
  * \brief Définition du contexte des événements de la boucle epoll
  */
 typedef struct epoll_fd_ctx {
-    void(*const handler)(struct epoll_fd_ctx *p, unsigned long events);          ///< Gestionnaire dédié à une cause de réveil de la boucle epoll du
-                                                                                 // module d'enregistrement
+    void (*const handler)(struct epoll_fd_ctx *p, unsigned long events);          ///< Gestionnaire dédié à une cause de réveil de la boucle epoll du module d'enregistrement
     int fd;          ///< Descripteur de l'événement
     char *ipv4_addr;          ///< Client's IP (dynamically created by strdup, careful when freeing it)
     char hostname[HOSTNAME_MAX_SIZE];          ///< Client host name
     char service[SERVICE_MAX_SIZE];          ///< Service name
+    Netlogging_lvl lvl;          ///< Loglevel for the client
 } epoll_fd_ctx;
 
 
 
-typedef struct {
+typedef struct recv_cmd_t {
     char *cmd;          ///< Commande to check
     char *desc;          ///< Command's description
     void(*const handler)(struct epoll_fd_ctx *p, char *buff, ssize_t recv_size);          ///< Fonction handler
