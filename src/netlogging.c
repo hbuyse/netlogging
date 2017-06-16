@@ -28,6 +28,9 @@
 #define NBELEMS(e)              (sizeof(e) / sizeof(e[0]) )
 
 
+#define NETLOGG_BACK(...)        netlogg_send(__DATE__, __TIME__, __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__)
+
+
 /**
  * \brief      Handle the new connections
  *
@@ -363,6 +366,7 @@ int8_t netlogg_send(const char              *date,
                     const char              *file,
                     const int32_t           lineno,
                     const char              *function,
+                    const int               fd,
                     const Netlogging_lvl    lvl,
                     const char              *format,
                     ...
@@ -417,10 +421,10 @@ int8_t netlogg_send(const char              *date,
     // Check if we have to send the message
     if ( lvl <= gLvl )
     {
-        if ( netlogg_send_fd != -1 )
+        if ( fd != -1 )
         {
             // Send to a connected client
-            send_bytes = send(netlogg_send_fd, &internal_msg, sizeof(internal_msg), 0);
+            send_bytes = send(fd, &internal_msg, sizeof(internal_msg), 0);
 
             if ( send_bytes == -1 )
             {
@@ -578,7 +582,7 @@ static void netlogg_handle_comm(struct epoll_fd_ctx *p,
                 if ( i == NBELEMS(recv_cmds) )
                 {
                     NETLOGG(NETLOGG_WARN, "Unknown command from %s: %s", p->ipv4_addr, buff);
-                    NETLOGG(NETLOGG_DEBUG, "Receive %zd bytes from %s (fd: %d) - unused", r, p->ipv4_addr, p->fd);
+                    NETLOGG(NETLOGG_DEBUG, "Receive %zd bytes from %s (fd: %d) - unused", strlen(buff), p->ipv4_addr, p->fd);
                 }
             }
         }
@@ -662,7 +666,7 @@ static void netlogg_send_to_all_connected_clients(struct epoll_fd_ctx   *p,
                     {
                         NETLOGG(NETLOGG_ERROR, "%s - send: %m\n", __FUNCTION__);
                     }
-                    else if ( send_size != strlen(internal_msg.buff) )
+                    else if ( (size_t) send_size != strlen(internal_msg.buff) )
                     {
                         NETLOGG(NETLOGG_ERROR, "%s - send: send_size (%zd) != recv_size (%zd)\n", __FUNCTION__, send_size, recv_size);
                     }
@@ -749,7 +753,7 @@ static void handle_loglevel_crit(struct epoll_fd_ctx    *p,
                                  ssize_t                recv_size
                                  )
 {
-    NETLOGG(NETLOGG_INFO, "Changing loglevel to \033[1mCRIT\033[0m (from %s)", p->ipv4_addr);
+    NETLOGG_BACK(p->fd, NETLOGG_INFO, "Changing loglevel to \033[1mCRIT\033[0m (from %s)", p->ipv4_addr);
 
     p->lvl = NETLOGG_CRIT;
 }
@@ -761,7 +765,7 @@ static void handle_loglevel_error(struct epoll_fd_ctx   *p,
                                   ssize_t               recv_size
                                   )
 {
-    NETLOGG(NETLOGG_INFO, "Changing loglevel to \033[1mERROR\033[0m (from %s)", p->ipv4_addr);
+    NETLOGG_BACK(p->fd, NETLOGG_INFO, "Changing loglevel to \033[1mERROR\033[0m (from %s)", p->ipv4_addr);
 
     p->lvl = NETLOGG_ERROR;
 }
@@ -773,7 +777,7 @@ static void handle_loglevel_info(struct epoll_fd_ctx    *p,
                                  ssize_t                recv_size
                                  )
 {
-    NETLOGG(NETLOGG_INFO, "Changing loglevel to \033[1mINFO\033[0m (from %s)", p->ipv4_addr);
+    NETLOGG_BACK(p->fd, NETLOGG_INFO, "Changing loglevel to \033[1mINFO\033[0m (from %s)", p->ipv4_addr);
 
     p->lvl = NETLOGG_INFO;
 }
@@ -785,7 +789,7 @@ static void handle_loglevel_warn(struct epoll_fd_ctx    *p,
                                  ssize_t                recv_size
                                  )
 {
-    NETLOGG(NETLOGG_INFO, "Changing loglevel to \033[1mWARN\033[0m (from %s)", p->ipv4_addr);
+    NETLOGG_BACK(p->fd, NETLOGG_INFO, "Changing loglevel to \033[1mWARN\033[0m (from %s)", p->ipv4_addr);
 
     p->lvl = NETLOGG_WARN;
 }
@@ -797,7 +801,7 @@ static void handle_loglevel_debug(struct epoll_fd_ctx   *p,
                                   ssize_t               recv_size
                                   )
 {
-    NETLOGG(NETLOGG_INFO, "Changing loglevel to \033[1mDEBUG\033[0m (from %s)", p->ipv4_addr);
+    NETLOGG_BACK(p->fd, NETLOGG_INFO, "Changing loglevel to \033[1mDEBUG\033[0m (from %s)", p->ipv4_addr);
 
     p->lvl = NETLOGG_DEBUG;
 }

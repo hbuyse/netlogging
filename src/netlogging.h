@@ -31,7 +31,7 @@ extern "C" {
  *
  * \return     { description_of_the_return_value }
  */
-#define NETLOGG(...)        netlogg_send(__DATE__, __TIME__, __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__)
+#define NETLOGG(...)        netlogg_send(__DATE__, __TIME__, __FILE__, __LINE__, __FUNCTION__, netlogg_send_fd, __VA_ARGS__)
 
 
 typedef enum Netlogging_lvl {
@@ -121,6 +121,7 @@ int8_t netlogg_send(const char              *date,
                     const char              *file,
                     const int32_t           lineno,
                     const char              *function,
+                    const int               fd,
                     const Netlogging_lvl    lvl,
                     const char              *format,
                     ...);
