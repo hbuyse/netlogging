@@ -3,14 +3,9 @@ language: c
 notifications:
   email: false
 
-dist: trusty
-
 compiler:
   - clang
   - gcc
-
-os:
-  - linux
 
 script:
   - ./autogen.sh
