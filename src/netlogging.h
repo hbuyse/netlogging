@@ -16,6 +16,11 @@ extern "C" {
 #endif
 
 
+
+#define BUFF_SIZE_MAX           4096
+#define HOSTNAME_MAX_SIZE       256
+#define SERVICE_MAX_SIZE        256
+
 /**
  * \brief      Send a message through
  *
@@ -37,6 +42,44 @@ typedef enum Netlogging_lvl {
     NETLOGG_LVLS
 } Netlogging_lvl;
 
+
+typedef enum {
+    EPOLL_FD_LISTEN = 0,
+    EPOLL_FD_RECV,
+    EPOLL_FD_SEND0,
+    EPOLL_FD_SEND1,
+    EPOLL_FD_SEND2,
+    EPOLL_FD_SEND3,
+    EPOLL_FD_SEND4,
+    EPOLL_FD_SEND5,
+    EPOLL_FD_SEND6,
+    EPOLL_FD_SEND7,
+    EPOLL_FD_SEND8,
+    EPOLL_FD_SEND9,
+    EPOLL_FD_MAX,
+} epoll_evt_t;
+
+
+/**
+ * \struct REC_fdContext
+ * \brief Définition du contexte des événements de la boucle epoll
+ */
+typedef struct epoll_fd_ctx {
+    void(*const handler)(struct epoll_fd_ctx *p, unsigned long events);          ///< Gestionnaire dédié à une cause de réveil de la boucle epoll du
+                                                                                 // module d'enregistrement
+    int fd;          ///< Descripteur de l'événement
+    char *ipv4_addr;          ///< Client's IP (dynamically created by strdup, careful when freeing it)
+    char hostname[HOSTNAME_MAX_SIZE];       ///< Client host name
+    char service[SERVICE_MAX_SIZE];    ///< Service name
+} epoll_fd_ctx;
+
+
+
+typedef struct {
+    char* cmd;  ///< Commande to check
+    char* desc;  ///< Command's description 
+    void (*const handler)(struct epoll_fd_ctx *p, char* buff, ssize_t recv_size);    ///< Fonction handler
+} recv_cmd_t;
 
 /**
  * \brief      Initiate the logging system

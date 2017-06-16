@@ -25,10 +25,121 @@
     #define INET4_ADDRSTRLEN    16
 #endif
 
+#define NBELEMS(e)  (sizeof(e) / sizeof(e[0]))
 
-#define BUFF_SIZE_MAX           4096
-#define HOSTNAME_MAX_SIZE       256
-#define SERVICE_MAX_SIZE        256
+
+/**
+ * \brief      Handle the new connections
+ *
+ * \param      p       The epoll context
+ * \param[in]  events  The events
+ */
+static void netlogg_handle_new_connection(struct epoll_fd_ctx *p, unsigned long events);
+
+
+
+
+/**
+ * \brief      Handler of the messages entering
+ *
+ * \param      p       The epoll context
+ * \param[in]  events  The events
+ */
+static void netlogg_handle_comm(struct epoll_fd_ctx *p, unsigned long events);
+
+
+
+/**
+ * \brief      Send a message to all connected clients
+ *
+ * \param      p       The epoll context
+ * \param[in]  events  The events
+ */
+static void netlogg_send_to_all_connected_clients(struct epoll_fd_ctx *p, unsigned long events);
+
+
+
+
+/**
+ * \brief      Close the specified connection (p->fd)
+ *
+ * \param      p       The epoll context
+ * \param[in]  events  The events
+ */
+static void netlogg_close_conn(epoll_fd_ctx *p);
+
+/**
+ * \brief      Handler of the exit commands
+ *
+ * \param      p          The epoll context
+ * \param      buff       The buffer
+ * \param[in]  recv_size  The receive size
+ */
+static void handle_exit(struct epoll_fd_ctx *p, char* buff, ssize_t recv_size);
+
+/**
+ * \brief      Handler of the help command
+ *
+ * \param      p          The epoll context
+ * \param      buff       The buffer
+ * \param[in]  recv_size  The receive size
+ */
+static void handle_help(struct epoll_fd_ctx *p, char* buff, ssize_t recv_size);
+
+/**
+ * \brief      Function that change the global loglevel to CRIT
+ *
+ * \param      p          The epoll context
+ * \param      buff       The buffer
+ * \param[in]  recv_size  The received size
+ */
+static void handle_loglevel_crit(struct epoll_fd_ctx *p, char* buff, ssize_t recv_size);
+
+/**
+ * \brief      Function that change the global loglevel to ERROR
+ *
+ * \param      p          The epoll context
+ * \param      buff       The buffer
+ * \param[in]  recv_size  The received size
+ */
+static void handle_loglevel_error(struct epoll_fd_ctx *p, char* buff, ssize_t recv_size);
+
+/**
+ * \brief      Function that change the global loglevel to WARN
+ *
+ * \param      p          The epoll context
+ * \param      buff       The buffer
+ * \param[in]  recv_size  The received size
+ */
+static void handle_loglevel_info(struct epoll_fd_ctx *p, char* buff, ssize_t recv_size);
+
+/**
+ * \brief      Function that change the global loglevel to INFO
+ *
+ * \param      p          The epoll context
+ * \param      buff       The buffer
+ * \param[in]  recv_size  The received size
+ */
+static void handle_loglevel_warn(struct epoll_fd_ctx *p, char* buff, ssize_t recv_size);
+
+/**
+ * \brief      Function that change the global loglevel to DEBUG
+ *
+ * \param      p          The epoll context
+ * \param      buff       The buffer
+ * \param[in]  recv_size  The received size
+ */
+static void handle_loglevel_debug(struct epoll_fd_ctx *p, char* buff, ssize_t recv_size);
+
+/**
+ * \brief      Function that change the command that ask for the connected clients
+ *
+ * \param      p          The epoll context
+ * \param      buff       The buffer
+ * \param[in]  recv_size  The received size
+ */
+static void handle_client_list(struct epoll_fd_ctx *p, char* buff, ssize_t recv_size);
+
 
 /**
  * Variable contenant le nom du programme
@@ -43,59 +154,32 @@ static Netlogging_lvl     gLvl  = NETLOGG_DEBUG;
 
 
 /**
- * General epoll file descriptor
+ * \brief General epoll file descriptor
  */
 static int     ep_fd            = -1;
 
 
 /**
- * Socket where we send the data
+ * \brief Socket where we send the data
  */
 static int     netlogg_send_fd  = -1;
 
 
 /**
- * \struct REC_fdContext
- * \brief Définition du contexte des événements de la boucle epoll
+ * \brief Command that can be send to the program and their handlers
  */
-typedef struct epoll_fd_ctx {
-    void(*const handler)(struct epoll_fd_ctx *p, unsigned long events);          ///< Gestionnaire dédié à une cause de réveil de la boucle epoll du
-                                                                                 // module d'enregistrement
-    int fd;          ///< Descripteur de l'événement
-    char *ipv4_addr;          ///< Client's IP (dynamically created by strdup, careful when freeing it)
-    char hostname[HOSTNAME_MAX_SIZE];       ///< Client host name
-    char service[SERVICE_MAX_SIZE];    ///< Service name
-} epoll_fd_ctx;
-
-
-typedef enum {
-    EPOLL_FD_LISTEN = 0,
-    EPOLL_FD_RECV,
-    EPOLL_FD_SEND0,
-    EPOLL_FD_SEND1,
-    EPOLL_FD_SEND2,
-    EPOLL_FD_SEND3,
-    EPOLL_FD_SEND4,
-    EPOLL_FD_SEND5,
-    EPOLL_FD_SEND6,
-    EPOLL_FD_SEND7,
-    EPOLL_FD_SEND8,
-    EPOLL_FD_SEND9,
-    EPOLL_FD_MAX,
-} epoll_evt_t;
-
-
-
-static void netlogg_handle_new_connection(struct epoll_fd_ctx *p, unsigned long events);
-
-
-static void netlogg_handle_comm(struct epoll_fd_ctx *p, unsigned long events);
-
-
-static void netlogg_send_to_all_connected_clients(struct epoll_fd_ctx *p, unsigned long events);
-
-
-static void netlogg_close_conn(epoll_fd_ctx *p);
+static recv_cmd_t recv_cmds[] = {
+    { .cmd = "\004",                .desc = NULL, .handler = handle_exit },
+    { .cmd = "help",            .desc = "Show the help", .handler = handle_help },
+    { .cmd = "exit",            .desc = "Close the connection", .handler = handle_exit },
+    { .cmd = "quit",            .desc = "Close the connection", .handler = handle_exit },
+    { .cmd = "loglevel crit",   .desc = "Change the loglevel to CRIT", .handler = handle_loglevel_crit },
+    { .cmd = "loglevel error",  .desc = "Change the loglevel to ERROR", .handler = handle_loglevel_error },
+    { .cmd = "loglevel info",   .desc = "Change the loglevel to INFO", .handler = handle_loglevel_info },
+    { .cmd = "loglevel warn",   .desc = "Change the loglevel to WARN", .handler = handle_loglevel_warn },
+    { .cmd = "loglevel debug",  .desc = "Change the loglevel to DEBUG", .handler = handle_loglevel_debug },
+    { .cmd = "client list",     .desc = "Show the list of clients", .handler = handle_client_list}
+};
 
 
 static epoll_fd_ctx     netlogger_ctx[] = {
@@ -295,19 +379,19 @@ int8_t netlogg_send(const char              *date,
     switch(lvl)
     {
         case NETLOGG_CRIT:
-            w += snprintf(buff + w, sizeof(buff) - w, "CRIT - ");
+            w += snprintf(buff + w, sizeof(buff) - w, "\033[31mCRIT\033[0m - ");
             break;
             
         case NETLOGG_ERROR:
-            w += snprintf(buff + w, sizeof(buff) - w, "ERROR - ");
+            w += snprintf(buff + w, sizeof(buff) - w, "\033[31mERROR\033[0m - ");
             break;
             
         case NETLOGG_WARN:
-            w += snprintf(buff + w, sizeof(buff) - w, "WARN - ");
+            w += snprintf(buff + w, sizeof(buff) - w, "\033[33mWARN\033[0m - ");
             break;
             
         case NETLOGG_INFO:
-            w += snprintf(buff + w, sizeof(buff) - w, "INFO - ");
+            w += snprintf(buff + w, sizeof(buff) - w, "\033[32mINFO\033[0m - ");
             break;
             
         case NETLOGG_DEBUG:
@@ -315,7 +399,7 @@ int8_t netlogg_send(const char              *date,
             break;
 
         default:
-            w += snprintf(buff + w, sizeof(buff) - w, "UNKNOWN_LVL - ");
+            w += snprintf(buff + w, sizeof(buff) - w, "\033[31mUNKNOWN_LVL\033[0m - ");
     }
 
     // Beginning of the varibale list
@@ -441,7 +525,7 @@ static void netlogg_handle_comm(struct epoll_fd_ctx *p,
                                 )
 {
     char        buff[BUFF_SIZE_MAX] = {0};
-    ssize_t     r __attribute__((unused)) = -1;
+    ssize_t     r = -1;
 
     if ( events & EPOLLIN )
     {
@@ -458,7 +542,34 @@ static void netlogg_handle_comm(struct epoll_fd_ctx *p,
         }
         else if ( r > 0 )
         {
-            NETLOGG(NETLOGG_DEBUG, "Receive %zd bytes from %s (fd: %d) - unused", r, p->ipv4_addr, p->fd);
+            uint32_t i = 0;
+
+            // Remove carriage return and newline feed if found
+            buff[strcspn(buff, "\r\n")] = 0;
+
+            if (strlen(buff) != 0)
+            {
+                // Parse all the commands, if found we use the associated function
+                for (i = 0; i < NBELEMS(recv_cmds); ++i)
+                {
+                    if (strncmp(recv_cmds[i].cmd, buff, strlen(recv_cmds[i].cmd)) == 0)
+                    {
+                        if (recv_cmds[i].handler != NULL)
+                        {
+                            (*recv_cmds[i].handler)(p, buff, r);
+                        }
+                        break;
+                    }
+                }
+
+                // If the command is not known, we trace it as a warning
+                if (i == NBELEMS(recv_cmds))
+                {
+                    NETLOGG(NETLOGG_WARN, "Unknown command from %s: %s", p->ipv4_addr, buff);
+                    NETLOGG(NETLOGG_DEBUG, "Receive %zd bytes from %s (fd: %d) - unused", r, p->ipv4_addr, p->fd);
+                }
+            }
+
         }
         else if ( p->fd == -1 )
         {
@@ -583,4 +694,87 @@ static void netlogg_close_conn(epoll_fd_ctx *p)
     {
         NETLOGG(NETLOGG_INFO, "p->fd already -1");
     }
+}
+
+
+static void handle_exit(struct epoll_fd_ctx *p, char* buff, ssize_t recv_size)
+{
+    NETLOGG(NETLOGG_INFO, "Closing connection (user demand)");
+
+    netlogg_close_conn(p);
+}
+
+
+static void handle_help(struct epoll_fd_ctx *p, char* buff, ssize_t recv_size)
+{
+    uint32_t i = 0;
+
+    for (i = 2; i < NBELEMS(recv_cmds); ++i)
+    {
+        if (recv_cmds[i].handler == NULL)
+        {
+            continue;
+        }
+
+        NETLOGG(NETLOGG_INFO, "%s : %s", recv_cmds[i].cmd, recv_cmds[i].desc);
+    }
+}
+
+
+
+static void handle_loglevel_crit(struct epoll_fd_ctx *p, char* buff, ssize_t recv_size)
+{
+    NETLOGG(NETLOGG_INFO, "Changing loglevel to \033[1mCRIT\033[0m (from %s)", p->ipv4_addr);
+
+    netlogg_change_loglevel(NETLOGG_CRIT);
+}
+
+
+static void handle_loglevel_error(struct epoll_fd_ctx *p, char* buff, ssize_t recv_size)
+{
+    NETLOGG(NETLOGG_INFO, "Changing loglevel to \033[1mERROR\033[0m (from %s)", p->ipv4_addr);
+
+    netlogg_change_loglevel(NETLOGG_ERROR);
+}
+
+
+static void handle_loglevel_info(struct epoll_fd_ctx *p, char* buff, ssize_t recv_size)
+{
+    NETLOGG(NETLOGG_INFO, "Changing loglevel to \033[1mINFO\033[0m (from %s)", p->ipv4_addr);
+
+    netlogg_change_loglevel(NETLOGG_INFO);
+}
+
+
+static void handle_loglevel_warn(struct epoll_fd_ctx *p, char* buff, ssize_t recv_size)
+{
+    NETLOGG(NETLOGG_INFO, "Changing loglevel to \033[1mWARN\033[0m (from %s)", p->ipv4_addr);
+
+    netlogg_change_loglevel(NETLOGG_WARN);
+}
+
+
+static void handle_loglevel_debug(struct epoll_fd_ctx *p, char* buff, ssize_t recv_size)
+{
+    NETLOGG(NETLOGG_INFO, "Changing loglevel to \033[1mDEBUG\033[0m (from %s)", p->ipv4_addr);
+
+    netlogg_change_loglevel(NETLOGG_DEBUG);
+}
+
+
+static void handle_client_list(struct epoll_fd_ctx *p, char* buff, ssize_t recv_size)
+{
+    epoll_evt_t i = EPOLL_FD_SEND0;
+
+    NETLOGG(NETLOGG_INFO, "Clients list asked by %s: %d clients connected", p->ipv4_addr, netlogg_nb_connected_clients());
+
+    for ( i = EPOLL_FD_SEND0; i <= EPOLL_FD_SEND9; i++ )
+    {
+        if ( netlogger_ctx[i].fd != -1 )
+        {
+            NETLOGG(NETLOGG_INFO, "Client %d: %s (%s:%s)", i + 1 - EPOLL_FD_SEND0, p->hostname, p->ipv4_addr, p->service);
+        }
+    }
+
+    netlogg_change_loglevel(NETLOGG_DEBUG);
 }
