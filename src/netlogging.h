@@ -17,9 +17,10 @@ extern "C" {
 
 
 
-#define BUFF_SIZE_MAX           4096
-#define HOSTNAME_MAX_SIZE       256
-#define SERVICE_MAX_SIZE        256
+#define BUFF_SIZE_MAX       4096
+#define HOSTNAME_MAX_SIZE   256
+#define SERVICE_MAX_SIZE    256
+
 
 /**
  * \brief      Send a message through
@@ -30,11 +31,11 @@ extern "C" {
  *
  * \return     { description_of_the_return_value }
  */
-#define NETLOGG(...) netlogg_send(__DATE__, __TIME__, __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__)
+#define NETLOGG(...)        netlogg_send(__DATE__, __TIME__, __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__)
 
 
 typedef enum Netlogging_lvl {
-    NETLOGG_CRIT = 0,
+    NETLOGG_CRIT    = 0,
     NETLOGG_ERROR,
     NETLOGG_WARN,
     NETLOGG_INFO,
@@ -69,17 +70,18 @@ typedef struct epoll_fd_ctx {
                                                                                  // module d'enregistrement
     int fd;          ///< Descripteur de l'événement
     char *ipv4_addr;          ///< Client's IP (dynamically created by strdup, careful when freeing it)
-    char hostname[HOSTNAME_MAX_SIZE];       ///< Client host name
-    char service[SERVICE_MAX_SIZE];    ///< Service name
+    char hostname[HOSTNAME_MAX_SIZE];          ///< Client host name
+    char service[SERVICE_MAX_SIZE];          ///< Service name
 } epoll_fd_ctx;
 
 
 
 typedef struct {
-    char* cmd;  ///< Commande to check
-    char* desc;  ///< Command's description 
-    void (*const handler)(struct epoll_fd_ctx *p, char* buff, ssize_t recv_size);    ///< Fonction handler
+    char *cmd;          ///< Commande to check
+    char *desc;          ///< Command's description
+    void(*const handler)(struct epoll_fd_ctx *p, char *buff, ssize_t recv_size);          ///< Fonction handler
 } recv_cmd_t;
+
 
 /**
  * \brief      Initiate the logging system
@@ -92,7 +94,9 @@ typedef struct {
  */
 int8_t netlogg_init(const char *progname, uint16_t port, Netlogging_lvl dft_lvl);
 
+
 void netlogg_start(void);
+
 
 /**
  * \brief      Send a message to all connected clients
