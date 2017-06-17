@@ -31,7 +31,7 @@ extern "C" {
  *
  * \return     { description_of_the_return_value }
  */
-#define NETLOGG(...)        netlogg_send(__DATE__, __TIME__, __FILE__, __LINE__, __FUNCTION__, netlogg_send_fd, __VA_ARGS__)
+#define NETLOGG(...)        netlogg_send(__DATE__, __TIME__, __FILE__, __LINE__, __FUNCTION__, -1, __VA_ARGS__)
 
 
 typedef enum Netlogging_lvl {
@@ -61,6 +61,7 @@ typedef enum {
 } epoll_evt_t;
 
 typedef struct {
+    int fd;          ///< Specific file descriptor
     Netlogging_lvl lvl;          ///< Niveau de log du buffer a envoyer
     char buff[BUFF_SIZE_MAX];          ///< Buffer a envoyer
 } internal_buff;

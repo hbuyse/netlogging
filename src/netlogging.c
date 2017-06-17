@@ -372,13 +372,16 @@ int8_t netlogg_send(const char              *date,
                     ...
                     )
 {
-    internal_buff internal_msg = {
-        .lvl = lvl,
-        .buff = {0}
-    };
     ssize_t     send_bytes          = -1;
     int         w = -1;
     va_list     ap;
+
+    // Initiate the internal struct
+    internal_buff internal_msg = {
+        .fd = fd,
+        .lvl = lvl,
+        .buff = {0}
+    };
 
 
     // Add the traces informations
@@ -418,21 +421,17 @@ int8_t netlogg_send(const char              *date,
 
     w   += snprintf(internal_msg.buff + w, sizeof(internal_msg.buff) - w, "\n");
 
-    // Check if we have to send the message
+    // Send to a connected client
+    send_bytes = send(netlogg_send_fd, &internal_msg, sizeof(internal_msg), 0);
+
+    if ( send_bytes == -1 )
+    {
+        fprintf(stderr, "%s - send: %m\n", __FUNCTION__);
+    }
+
     if ( lvl <= gLvl )
     {
-        if ( fd != -1 )
-        {
-            // Send to a connected client
-            send_bytes = send(fd, &internal_msg, sizeof(internal_msg), 0);
-
-            if ( send_bytes == -1 )
-            {
-                fprintf(stderr, "%s - send: %m\n", __FUNCTION__);
-            }
-        }
-
-        fprintf( (lvl < NETLOGG_INFO) ? stdout : stderr, "%s", internal_msg.buff);
+        fprintf( (lvl < NETLOGG_INFO) ? stderr : stdout, "%s", internal_msg.buff);
     }
 
     return (0);
@@ -654,21 +653,46 @@ static void netlogg_send_to_all_connected_clients(struct epoll_fd_ctx   *p,
         }
         else
         {
-            // Parse all possible communication socket
-            for ( i = EPOLL_FD_SEND0; i <= EPOLL_FD_SEND9; i++ )
+            if ( internal_msg.fd == -1 )
             {
-                if ( (netlogger_ctx[i].fd != -1) && (internal_msg.lvl <= netlogger_ctx[i].lvl))
+                printf("pour tout le monde\n");
+                // Parse all possible communication socket
+                for ( i = EPOLL_FD_SEND0; i <= EPOLL_FD_SEND9; i++ )
                 {
-                    // Send to a connected client
-                    send_size = send(netlogger_ctx[i].fd, internal_msg.buff, strlen(internal_msg.buff), 0);
+                    if ( (netlogger_ctx[i].fd != -1) && (internal_msg.lvl <= netlogger_ctx[i].lvl))
+                    {
+                        // Send to a connected client
+                        send_size = send(netlogger_ctx[i].fd, internal_msg.buff, strlen(internal_msg.buff), 0);
 
-                    if ( send_size == -1 )
-                    {
-                        NETLOGG(NETLOGG_ERROR, "%s - send: %m\n", __FUNCTION__);
+                        if ( send_size == -1 )
+                        {
+                            NETLOGG(NETLOGG_ERROR, "%s - send: %m\n", __FUNCTION__);
+                        }
+                        else if ( (size_t) send_size != strlen(internal_msg.buff) )
+                        {
+                            NETLOGG(NETLOGG_ERROR, "%s - send: send_size (%zd) != recv_size (%zd)\n", __FUNCTION__, send_size, recv_size);
+                        }
                     }
-                    else if ( (size_t) send_size != strlen(internal_msg.buff) )
+                }
+            }
+            else
+            {
+                // Parse all possible communication socket
+                for ( i = EPOLL_FD_SEND0; i <= EPOLL_FD_SEND9; i++ )
+                {
+                    if ( (netlogger_ctx[i].fd == internal_msg.fd) && (netlogger_ctx[i].fd != -1) && (internal_msg.lvl <= netlogger_ctx[i].lvl))
                     {
-                        NETLOGG(NETLOGG_ERROR, "%s - send: send_size (%zd) != recv_size (%zd)\n", __FUNCTION__, send_size, recv_size);
+                        // Send to a connected client
+                        send_size = send(netlogger_ctx[i].fd, internal_msg.buff, strlen(internal_msg.buff), 0);
+
+                        if ( send_size == -1 )
+                        {
+                            NETLOGG(NETLOGG_ERROR, "%s - send: %m\n", __FUNCTION__);
+                        }
+                        else if ( (size_t) send_size != strlen(internal_msg.buff) )
+                        {
+                            NETLOGG(NETLOGG_ERROR, "%s - send: send_size (%zd) != recv_size (%zd)\n", __FUNCTION__, send_size, recv_size);
+                        }
                     }
                 }
             }
@@ -742,7 +766,7 @@ static void handle_help(struct epoll_fd_ctx *p,
             continue;
         }
 
-        NETLOGG(NETLOGG_INFO, "%s : %s", recv_cmds[i].cmd, recv_cmds[i].desc);
+        NETLOGG_BACK(p->fd, NETLOGG_INFO, "%s : %s", recv_cmds[i].cmd, recv_cmds[i].desc);
     }
 }
 
@@ -816,13 +840,13 @@ static void handle_client_list(struct epoll_fd_ctx  *p,
     epoll_evt_t     i = EPOLL_FD_SEND0;
 
 
-    NETLOGG(NETLOGG_INFO, "Clients list asked by %s: %d clients connected", p->ipv4_addr, netlogg_nb_connected_clients() );
+    NETLOGG_BACK(p->fd, NETLOGG_INFO, "Clients list asked by %s: %d clients connected", p->ipv4_addr, netlogg_nb_connected_clients() );
 
     for ( i = EPOLL_FD_SEND0; i <= EPOLL_FD_SEND9; i++ )
     {
         if ( netlogger_ctx[i].fd != -1 )
         {
-            NETLOGG(NETLOGG_INFO, "Client %d: %s (%s:%s)", i + 1 - EPOLL_FD_SEND0, p->hostname, p->ipv4_addr, p->service);
+            NETLOGG_BACK(p->fd, NETLOGG_INFO, "Client %d: %s (%s:%s)", i + 1 - EPOLL_FD_SEND0, netlogger_ctx[i].hostname, netlogger_ctx[i].ipv4_addr, netlogger_ctx[i].service);
         }
     }
 
