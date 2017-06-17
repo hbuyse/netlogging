@@ -185,11 +185,11 @@ static recv_cmd_t       recv_cmds[] =
     {.cmd = "help", .desc = "Show the help", .handler = handle_help},
     {.cmd = "exit", .desc = "Close the connection", .handler = handle_exit},
     {.cmd = "quit", .desc = "Close the connection", .handler = handle_exit},
-    {.cmd = "loglevel crit", .desc = "Change the loglevel to CRIT", .handler = handle_loglevel_crit},
-    {.cmd = "loglevel error", .desc = "Change the loglevel to ERROR", .handler = handle_loglevel_error},
-    {.cmd = "loglevel info", .desc = "Change the loglevel to INFO", .handler = handle_loglevel_info},
-    {.cmd = "loglevel warn", .desc = "Change the loglevel to WARN", .handler = handle_loglevel_warn},
-    {.cmd = "loglevel debug", .desc = "Change the loglevel to DEBUG", .handler = handle_loglevel_debug},
+    {.cmd = "loglevel crit", .desc = "Change the client loglevel to CRIT", .handler = handle_loglevel_crit},
+    {.cmd = "loglevel error", .desc = "Change the client loglevel to ERROR", .handler = handle_loglevel_error},
+    {.cmd = "loglevel info", .desc = "Change the client loglevel to INFO", .handler = handle_loglevel_info},
+    {.cmd = "loglevel warn", .desc = "Change the client loglevel to WARN", .handler = handle_loglevel_warn},
+    {.cmd = "loglevel debug", .desc = "Change the client loglevel to DEBUG", .handler = handle_loglevel_debug},
     {.cmd = "client list", .desc = "Show the list of clients", .handler = handle_client_list}
 };
 
@@ -657,7 +657,6 @@ static void netlogg_send_to_all_connected_clients(struct epoll_fd_ctx   *p,
         {
             if ( internal_msg.fd == -1 )
             {
-                printf("pour tout le monde\n");
                 // Parse all possible communication socket
                 for ( i = EPOLL_FD_SEND0; i <= EPOLL_FD_SEND9; i++ )
                 {
@@ -684,7 +683,7 @@ static void netlogg_send_to_all_connected_clients(struct epoll_fd_ctx   *p,
                 {
                     if ( (netlogger_ctx[i].fd == internal_msg.fd) && (netlogger_ctx[i].fd != -1) && (internal_msg.lvl <= netlogger_ctx[i].lvl))
                     {
-                        // Send to a connected client
+                        // Send to a specific connected client
                         send_size = send(netlogger_ctx[i].fd, internal_msg.buff, strlen(internal_msg.buff), 0);
 
                         if ( send_size == -1 )
@@ -760,6 +759,7 @@ static void handle_help(struct epoll_fd_ctx *p,
 {
     uint32_t     i = 0;
 
+    NETLOGG_BACK(p->fd, NETLOGG_INFO, "The available commands are:");
 
     for ( i = 2; i < NBELEMS(recv_cmds); ++i )
     {
