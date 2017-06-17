@@ -563,6 +563,7 @@ static void netlogg_handle_comm(struct epoll_fd_ctx *p,
             // Remove carriage return and newline feed if found
             buff[strcspn(buff, "\r\n")] = 0;
 
+
             if ( strlen(buff) != 0 )
             {
                 // Parse all the commands, if found we use the associated function
@@ -572,6 +573,7 @@ static void netlogg_handle_comm(struct epoll_fd_ctx *p,
                     {
                         if ( recv_cmds[i].handler != NULL )
                         {
+                            NETLOGG(NETLOGG_DEBUG, "Receive the command \"%s\" from %s (%s)", buff, p->hostname, p->ipv4_addr);
                             (*recv_cmds[i].handler)(p, buff, r);
                         }
 
