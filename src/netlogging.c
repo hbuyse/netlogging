@@ -28,7 +28,7 @@
 #define NBELEMS(e)              (sizeof(e) / sizeof(e[0]) )
 
 
-#define NETLOGG_BACK(...)        netlogg_send(__DATE__, __TIME__, __FILE__, __LINE__, __FUNCTION__, __VA_ARGS__)
+#define NETLOGG_BACK(...)        netlogg_send(__DATE__, __TIME__, __FILE__, __LINE__, __VA_ARGS__)
 
 
 /**
@@ -365,7 +365,6 @@ int8_t netlogg_send(const char              *date,
                     const char              *time,
                     const char              *file,
                     const int32_t           lineno,
-                    const char              *function,
                     const int               fd,
                     const Netlogging_lvl    lvl,
                     const char              *format,
@@ -385,7 +384,7 @@ int8_t netlogg_send(const char              *date,
 
 
     // Add the traces informations
-    w = snprintf(internal_msg.buff, sizeof(internal_msg.buff), "%s %s - %s:%d - %s - ", date, time, file, lineno, function);
+    w = snprintf(internal_msg.buff, sizeof(internal_msg.buff), "%s %s - %s:%d - ", date, time, file, lineno);
 
     // Add the level in the traces
     switch ( lvl )
