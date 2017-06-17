@@ -517,11 +517,14 @@ static void netlogg_handle_new_connection(struct epoll_fd_ctx   *p,
             else
             {
                 NETLOGG(NETLOGG_DEBUG,
-                        "Client %s added in the epoll loop (%s, %s)",
+                        "New client %s added in the epoll loop (%s, %s)",
                         netlogger_ctx[i].ipv4_addr,
                         netlogger_ctx[i].hostname,
                         netlogger_ctx[i].service);
                 NETLOGG(NETLOGG_INFO, "%d clients connected", netlogg_nb_connected_clients() );
+
+                // Prin the help
+                handle_help(&netlogger_ctx[i], NULL, 0);
             }
 
             break;
