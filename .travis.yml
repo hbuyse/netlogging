@@ -7,8 +7,10 @@ compiler:
   - clang
   - gcc
 
-script:
+before_script:
   - ./autogen.sh
+  
+script:
   - ./configure --prefix=/tmp/
   - make
   - make install
