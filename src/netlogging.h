@@ -31,7 +31,7 @@ extern "C" {
  *
  * \return     { description_of_the_return_value }
  */
-#define NETLOGG(...)        netlogg_send(__DATE__, __TIME__, __FILE__, __LINE__, -1, __VA_ARGS__)
+#define NETLOGG(...)        netlogg_send(__FILE__, __LINE__, -1, __VA_ARGS__)
 
 
 typedef enum Netlogging_lvl {
@@ -106,20 +106,15 @@ void netlogg_start(void);
 /**
  * \brief      Send a message to all connected clients
  *
- * \param[in]  date       The date
- * \param[in]  time       The time
  * \param[in]  file       The file
  * \param[in]  lineno     The line number
- * \param[in]  function   The function
  * \param[in]  lvl        The logging level
  * \param      format     The format
  * \param[in]  ...        List of variable for the format
  *
  * \return     Error code
  */
-int8_t netlogg_send(const char              *date,
-                    const char              *time,
-                    const char              *file,
+int8_t netlogg_send(const char              *file,
                     const int32_t           lineno,
                     const int               fd,
                     const Netlogging_lvl    lvl,

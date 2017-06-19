@@ -17,6 +17,7 @@
 #include <unistd.h>             // close
 #include <netdb.h>              // getnameinfo
 #include <errno.h>              // errno
+#include <time.h>               // time_t, struct tm, time, localtime, strftime
 
 #include "netlogging.h"          // Netlogging_lvl
 
@@ -28,7 +29,7 @@
 #define NBELEMS(e)              (sizeof(e) / sizeof(e[0]) )
 
 
-#define NETLOGG_BACK(...)        netlogg_send(__DATE__, __TIME__, __FILE__, __LINE__, __VA_ARGS__)
+#define NETLOGG_BACK(...)        netlogg_send(__FILE__, __LINE__, __VA_ARGS__)
 
 
 /**
@@ -300,7 +301,6 @@ int8_t netlogg_init(const char      *progname,
     {
         netlogger_ctx[EPOLL_FD_RECV].fd = sv[1];
         netlogg_send_fd = sv[0];
-        NETLOGG(NETLOGG_DEBUG, "socketpair");
     }
 
     ep_ev.events    = EPOLLIN | EPOLLHUP | EPOLLERR | EPOLLRDHUP;
@@ -361,9 +361,7 @@ void netlogg_start(void)
 
 
 
-int8_t netlogg_send(const char              *date,
-                    const char              *time,
-                    const char              *file,
+int8_t netlogg_send(const char              *file,
                     const int32_t           lineno,
                     const int               fd,
                     const Netlogging_lvl    lvl,
@@ -375,6 +373,10 @@ int8_t netlogg_send(const char              *date,
     int         w = -1;
     va_list     ap;
 
+    // Time vars
+    time_t rawtime;
+    struct tm *info;
+
     // Initiate the internal struct
     internal_buff internal_msg = {
         .fd = fd,
@@ -382,9 +384,13 @@ int8_t netlogg_send(const char              *date,
         .buff = {0}
     };
 
+    // Get the time
+    time( &rawtime );
+    info = localtime( &rawtime );
+    w = strftime(internal_msg.buff, sizeof(internal_msg.buff), "%b %d %Y %H:%M:%S", info);
 
     // Add the traces informations
-    w = snprintf(internal_msg.buff, sizeof(internal_msg.buff), "%s %s - %s:%d - ", date, time, file, lineno);
+    w += snprintf(internal_msg.buff + w, sizeof(internal_msg.buff) - w, " - %s:%d - ", file, lineno);
 
     // Add the level in the traces
     switch ( lvl )
