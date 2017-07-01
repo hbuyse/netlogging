@@ -18,6 +18,7 @@
 #include <netdb.h>              // getnameinfo
 #include <errno.h>              // errno
 #include <time.h>               // time_t, struct tm, time, localtime, strftime
+#include <sys/time.h>           // gettimeofday, struct timeval
 
 #include "netlogging.h"          // Netlogging_lvl
 
@@ -374,8 +375,8 @@ int8_t netlogg_send(const char              *file,
     va_list     ap;
 
     // Time vars
-    time_t rawtime;
     struct tm *info;
+    struct timeval tval;
 
     // Initiate the internal struct
     internal_buff internal_msg = {
@@ -385,12 +386,13 @@ int8_t netlogg_send(const char              *file,
     };
 
     // Get the time
-    time( &rawtime );
-    info = localtime( &rawtime );
+    gettimeofday(&tval, NULL);
+    info = localtime( &tval.tv_sec );
+
     w = strftime(internal_msg.buff, sizeof(internal_msg.buff), "%b %d %Y %H:%M:%S", info);
 
     // Add the traces informations
-    w += snprintf(internal_msg.buff + w, sizeof(internal_msg.buff) - w, " - %s:%d - ", file, lineno);
+    w += snprintf(internal_msg.buff + w, sizeof(internal_msg.buff) - w, ".%06ld - %s:%d - ", tval.tv_usec, file, lineno);
 
     // Add the level in the traces
     switch ( lvl )
@@ -529,7 +531,7 @@ static void netlogg_handle_new_connection(struct epoll_fd_ctx   *p,
                         netlogger_ctx[i].service);
                 NETLOGG(NETLOGG_INFO, "%d clients connected", netlogg_nb_connected_clients() );
 
-                // Prin the help
+                // Print the help
                 handle_help(&netlogger_ctx[i], NULL, 0);
             }
 
