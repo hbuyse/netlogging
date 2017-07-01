@@ -32,6 +32,7 @@
 
 #define NETLOGG_BACK(...)        netlogg_send(__FILE__, __LINE__, __VA_ARGS__)
 
+#define MAXEVENTS 64
 
 /**
  * \brief      Handle the new connections
@@ -198,18 +199,18 @@ static recv_cmd_t       recv_cmds[] =
 
 static epoll_fd_ctx     netlogger_ctx[] =
 {
-    [EPOLL_FD_LISTEN]   = {netlogg_handle_new_connection, -1, NULL},
-    [EPOLL_FD_RECV]     = {netlogg_send_to_all_connected_clients, -1, NULL},
-    [EPOLL_FD_SEND0]    = {netlogg_handle_comm, -1, NULL},
-    [EPOLL_FD_SEND1]    = {netlogg_handle_comm, -1, NULL},
-    [EPOLL_FD_SEND2]    = {netlogg_handle_comm, -1, NULL},
-    [EPOLL_FD_SEND3]    = {netlogg_handle_comm, -1, NULL},
-    [EPOLL_FD_SEND4]    = {netlogg_handle_comm, -1, NULL},
-    [EPOLL_FD_SEND5]    = {netlogg_handle_comm, -1, NULL},
-    [EPOLL_FD_SEND6]    = {netlogg_handle_comm, -1, NULL},
-    [EPOLL_FD_SEND7]    = {netlogg_handle_comm, -1, NULL},
-    [EPOLL_FD_SEND8]    = {netlogg_handle_comm, -1, NULL},
-    [EPOLL_FD_SEND9]    = {netlogg_handle_comm, -1, NULL}
+    [EPOLL_FD_LISTEN]   = {-1, netlogg_handle_new_connection, "netlogg_handle_new_connection", NULL},
+    [EPOLL_FD_RECV]     = {-1, netlogg_send_to_all_connected_clients, "netlogg_send_to_all_connected_clients", NULL},
+    [EPOLL_FD_SEND0]    = {-1, netlogg_handle_comm, "netlogg_handle_comm", NULL},
+    [EPOLL_FD_SEND1]    = {-1, netlogg_handle_comm, "netlogg_handle_comm", NULL},
+    [EPOLL_FD_SEND2]    = {-1, netlogg_handle_comm, "netlogg_handle_comm", NULL},
+    [EPOLL_FD_SEND3]    = {-1, netlogg_handle_comm, "netlogg_handle_comm", NULL},
+    [EPOLL_FD_SEND4]    = {-1, netlogg_handle_comm, "netlogg_handle_comm", NULL},
+    [EPOLL_FD_SEND5]    = {-1, netlogg_handle_comm, "netlogg_handle_comm", NULL},
+    [EPOLL_FD_SEND6]    = {-1, netlogg_handle_comm, "netlogg_handle_comm", NULL},
+    [EPOLL_FD_SEND7]    = {-1, netlogg_handle_comm, "netlogg_handle_comm", NULL},
+    [EPOLL_FD_SEND8]    = {-1, netlogg_handle_comm, "netlogg_handle_comm", NULL},
+    [EPOLL_FD_SEND9]    = {-1, netlogg_handle_comm, "netlogg_handle_comm", NULL}
 };
 
 
@@ -326,37 +327,46 @@ void netlogg_start(void)
 {
     for ( ; ; )
     {
-        int     timeout = -1;
-        struct epoll_event ep_ev;
-        int     nb      = epoll_wait(ep_fd, &ep_ev, 1, timeout);
+        int     timeout             = -1;
+        struct epoll_event *levents = NULL;
+        int     nb                  = -1;
+
+        levents = calloc (MAXEVENTS, sizeof(struct epoll_event));;
+        nb      = epoll_wait(ep_fd, levents, MAXEVENTS, timeout);
 
         if ( nb > 0 )
         {
-            epoll_fd_ctx     *p = ep_ev.data.ptr;
+            for (int i = 0; i < nb; ++i)
+            {
+                epoll_fd_ctx     *p = levents[i].data.ptr;
 
-            assert(nb == 1);
-            assert(p);
-            assert(p->handler);
+                // Assertions
+                assert(p);
+                assert(p->handler);
 
 
-            // Traitement de l'événement
-            (*p->handler)(p, ep_ev.events);
+                // Traitement de l'événement
+                (*p->handler)(p, levents[i].events);
+            }
         }
         else if ( nb == 0 )
         {
-            NETLOGG(NETLOGG_WARN, "st_fsm: rien à traiter");
+            NETLOGG(NETLOGG_WARN, "%s: Timeout", __FUNCTION__);
         }
         else
         {
             if ( (nb == -1) && (errno == EINTR) )
             {
-                NETLOGG(NETLOGG_WARN, "st_fsm: signal intercepté");
+                NETLOGG(NETLOGG_WARN, "%s: signal intercepté", __FUNCTION__);
             }
             else
             {
-                NETLOGG(NETLOGG_ERROR, "Invalide: %m");
+                NETLOGG(NETLOGG_ERROR, "%s: Invalide: %m", __FUNCTION__);
             }
         }
+
+        // Free the pointer
+        levents = realloc(levents, 0);
     }
 }
 

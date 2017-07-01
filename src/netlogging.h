@@ -17,10 +17,10 @@ extern "C" {
 
 
 
-#define BUFF_SIZE_MAX       4096
-#define HOSTNAME_MAX_SIZE   256
-#define SERVICE_MAX_SIZE    256
-
+#define BUFF_SIZE_MAX         4096
+#define HOSTNAME_MAX_SIZE     256
+#define SERVICE_MAX_SIZE      256
+#define DESCRIPTION_MAX_SIZE  1024
 
 /**
  * \brief      Send a message through
@@ -71,8 +71,9 @@ typedef struct {
  * \brief Définition du contexte des événements de la boucle epoll
  */
 typedef struct epoll_fd_ctx {
-    void (*const handler)(struct epoll_fd_ctx *p, unsigned long events);          ///< Gestionnaire dédié à une cause de réveil de la boucle epoll du module d'enregistrement
     int fd;          ///< Descripteur de l'événement
+    void (*const handler)(struct epoll_fd_ctx *p, unsigned long events);          ///< Gestionnaire dédié à une cause de réveil de la boucle epoll du module d'enregistrement
+    char description[DESCRIPTION_MAX_SIZE];          /// Description of the handler
     char *ipv4_addr;          ///< Client's IP (dynamically created by strdup, careful when freeing it)
     char hostname[HOSTNAME_MAX_SIZE];          ///< Client host name
     char service[SERVICE_MAX_SIZE];          ///< Service name
