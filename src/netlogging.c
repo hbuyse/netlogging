@@ -19,6 +19,7 @@
 #include <errno.h>              // errno
 #include <time.h>               // time_t, struct tm, time, localtime, strftime
 #include <sys/time.h>           // gettimeofday, struct timeval
+#include <syslog.h>               /// openlog, syslog, closelog
 
 #include "netlogging.h"          // Netlogging_lvl
 
@@ -168,7 +169,17 @@ static void handle_loglevel_error(struct epoll_fd_ctx *p, char *buff, ssize_t re
  * \param      buff       The buffer
  * \param[in]  recv_size  The received size
  */
-static void handle_loglevel_info(struct epoll_fd_ctx *p, char *buff, ssize_t recv_size);
+static void handle_loglevel_warn(struct epoll_fd_ctx *p, char *buff, ssize_t recv_size);
+
+
+/**
+ * \brief      Function that change the global loglevel to NOTICE
+ *
+ * \param      p          The epoll context
+ * \param      buff       The buffer
+ * \param[in]  recv_size  The received size
+ */
+static void handle_loglevel_notice(struct epoll_fd_ctx *p, char *buff, ssize_t recv_size);
 
 
 /**
@@ -178,7 +189,7 @@ static void handle_loglevel_info(struct epoll_fd_ctx *p, char *buff, ssize_t rec
  * \param      buff       The buffer
  * \param[in]  recv_size  The received size
  */
-static void handle_loglevel_warn(struct epoll_fd_ctx *p, char *buff, ssize_t recv_size);
+static void handle_loglevel_info(struct epoll_fd_ctx *p, char *buff, ssize_t recv_size);
 
 
 /**
@@ -244,6 +255,7 @@ static recv_cmd_t       recv_cmds[] =
     {.cmd = "quit", .desc = "Close the connection", .handler = handle_exit},
     {.cmd = "loglevel crit", .desc = "Change the client loglevel to CRIT", .handler = handle_loglevel_crit},
     {.cmd = "loglevel error", .desc = "Change the client loglevel to ERROR", .handler = handle_loglevel_error},
+    {.cmd = "loglevel notice", .desc = "Change the client loglevel to NOTICE", .handler = handle_loglevel_notice},
     {.cmd = "loglevel info", .desc = "Change the client loglevel to INFO", .handler = handle_loglevel_info},
     {.cmd = "loglevel warn", .desc = "Change the client loglevel to WARN", .handler = handle_loglevel_warn},
     {.cmd = "loglevel debug", .desc = "Change the client loglevel to DEBUG", .handler = handle_loglevel_debug},
@@ -281,6 +293,9 @@ void* netlogg_init(void * args)
     // Set global variables
     gProgname   = strdup(n_args->progname);
     gLvl        = n_args->dft_lvl;
+
+
+    openlog(NULL, LOG_CONS | LOG_PID | LOG_NDELAY, LOG_USER);
 
 
     // Create epoll file descriptor
@@ -426,7 +441,7 @@ int8_t netlogg_send(const char              *file,
 {
     ssize_t     send_bytes          = -1;
     int         w = -1;
-    va_list     ap;
+    va_list     ap, ap_dup;
 
     // Time vars
     struct tm *info;
@@ -451,6 +466,14 @@ int8_t netlogg_send(const char              *file,
     // Add the level in the traces
     switch ( lvl )
     {
+        case NETLOGG_EMERG:
+            w   += snprintf(internal_msg.buff + w, sizeof(internal_msg.buff) - w, "\033[31mEMERG\033[0m - ");
+            break;
+
+        case NETLOGG_ALERT:
+            w   += snprintf(internal_msg.buff + w, sizeof(internal_msg.buff) - w, "\033[31mALERT\033[0m - ");
+            break;
+
         case NETLOGG_CRIT:
             w   += snprintf(internal_msg.buff + w, sizeof(internal_msg.buff) - w, "\033[31mCRIT\033[0m - ");
             break;
@@ -461,6 +484,10 @@ int8_t netlogg_send(const char              *file,
 
         case NETLOGG_WARN:
             w   += snprintf(internal_msg.buff + w, sizeof(internal_msg.buff) - w, "\033[33mWARN\033[0m - ");
+            break;
+
+        case NETLOGG_NOTICE:
+            w   += snprintf(internal_msg.buff + w, sizeof(internal_msg.buff) - w, "\033[32mNOTICE\033[0m - ");
             break;
 
         case NETLOGG_INFO:
@@ -475,9 +502,22 @@ int8_t netlogg_send(const char              *file,
             w   += snprintf(internal_msg.buff + w, sizeof(internal_msg.buff) - w, "\033[31mUNKNOWN_LVL\033[0m - ");
     }
 
-    // Beginning of the varibale list
+    // Beginning of the variable list
     va_start(ap, format);
+
+    // Send a message to the syslog only if it is not for a special socket and if the loglevel is higher than the
+    // default one
+    if ( (fd == -1) && (lvl <= gLvl) )
+    {
+        va_copy(ap_dup, ap);
+        vsyslog(lvl, format, ap_dup);
+        va_end(ap_dup);
+    }
+
+    // Prepare the message for the sockets
     w   += vsnprintf(internal_msg.buff + w, sizeof(internal_msg.buff) - w, format, ap);
+
+    // Ending of the variable list
     va_end(ap);
 
     w   += snprintf(internal_msg.buff + w, sizeof(internal_msg.buff) - w, "\n");
@@ -487,12 +527,7 @@ int8_t netlogg_send(const char              *file,
 
     if ( send_bytes == -1 )
     {
-        fprintf(stderr, "%s - send: %m\n", __FUNCTION__);
-    }
-
-    if ( lvl <= gLvl )
-    {
-        fprintf( (lvl < NETLOGG_INFO) ? stderr : stdout, "%s", internal_msg.buff);
+        syslog(LOG_ERR, "%s - send: %m\n", __FUNCTION__);
     }
 
     return (0);
@@ -851,6 +886,18 @@ static void handle_loglevel_error(struct epoll_fd_ctx   *p,
     NETLOGG_BACK(p->fd, NETLOGG_INFO, "Changing loglevel to \033[1mERROR\033[0m (from %s)", p->ipv4_addr);
 
     p->lvl = NETLOGG_ERROR;
+}
+
+
+
+static void handle_loglevel_notice(struct epoll_fd_ctx    *p,
+                                 char                   *buff,
+                                 ssize_t                recv_size
+                                 )
+{
+    NETLOGG_BACK(p->fd, NETLOGG_INFO, "Changing loglevel to \033[1mINFO\033[0m (from %s)", p->ipv4_addr);
+
+    p->lvl = NETLOGG_NOTICE;
 }
 
 

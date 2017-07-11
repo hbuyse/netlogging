@@ -35,6 +35,15 @@ static void dump_backtrace(int  signal,
     char     process[128];
     sprintf(process, "%d", getpid() );
 
+    syslog(LOG_CRIT, ">>> SEGMENTATION FAULT ON PROCESS %s >>>\n", process);
+
+    for ( i = 0; i < size; i++ )
+    {
+        syslog(LOG_CRIT, "%s\n", strings[i]);
+    }
+
+    syslog(LOG_CRIT, "<<< SEGMENTATION FAULT ON PROCESS %s <<<", process);
+
     fprintf(stderr, ">>> SEGMENTATION FAULT ON PROCESS %s >>>\n", process);
 
     for ( i = 0; i < size; i++ )

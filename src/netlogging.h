@@ -10,17 +10,21 @@
 
 #include <stdint.h>          // int8_t, int32_t
 #include <stdio.h>           // vfprintf
+#include <syslog.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 typedef enum Netlogging_lvl {
-    NETLOGG_CRIT    = 0,
-    NETLOGG_ERROR,
-    NETLOGG_WARN,
-    NETLOGG_INFO,
-    NETLOGG_DEBUG,
+    NETLOGG_EMERG = LOG_EMERG,
+    NETLOGG_ALERT = LOG_ALERT,
+    NETLOGG_CRIT = LOG_CRIT,
+    NETLOGG_ERROR = LOG_ERR,
+    NETLOGG_WARN = LOG_WARNING,
+    NETLOGG_NOTICE = LOG_NOTICE,
+    NETLOGG_INFO = LOG_INFO,
+    NETLOGG_DEBUG = LOG_DEBUG,
     NETLOGG_LVLS
 } Netlogging_lvl;
 
