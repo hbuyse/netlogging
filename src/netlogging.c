@@ -29,10 +29,61 @@
 
 #define NBELEMS(e)              (sizeof(e) / sizeof(e[0]) )
 
+#define BUFF_SIZE_MAX         4096
+#define HOSTNAME_MAX_SIZE     256
+#define SERVICE_MAX_SIZE      256
+#define DESCRIPTION_MAX_SIZE  1024
 
 #define NETLOGG_BACK(...)        netlogg_send(__FILE__, __LINE__, __VA_ARGS__)
 
 #define MAXEVENTS 64
+
+
+typedef enum {
+    EPOLL_FD_LISTEN = 0,
+    EPOLL_FD_RECV,
+    EPOLL_FD_SEND0,
+    EPOLL_FD_SEND1,
+    EPOLL_FD_SEND2,
+    EPOLL_FD_SEND3,
+    EPOLL_FD_SEND4,
+    EPOLL_FD_SEND5,
+    EPOLL_FD_SEND6,
+    EPOLL_FD_SEND7,
+    EPOLL_FD_SEND8,
+    EPOLL_FD_SEND9,
+    EPOLL_FD_MAX,
+} epoll_evt_t;
+
+
+typedef struct {
+    int fd;          ///< Specific file descriptor
+    Netlogging_lvl lvl;          ///< Niveau de log du buffer a envoyer
+    char buff[BUFF_SIZE_MAX];          ///< Buffer a envoyer
+} internal_buff;
+
+
+/**
+ * \struct REC_fdContext
+ * \brief Définition du contexte des événements de la boucle epoll
+ */
+typedef struct epoll_fd_ctx {
+    int fd;          ///< Descripteur de l'événement
+    void (*const handler)(struct epoll_fd_ctx *p, unsigned long events);          ///< Gestionnaire dédié à une cause de réveil de la boucle epoll du module d'enregistrement
+    char description[DESCRIPTION_MAX_SIZE];          /// Description of the handler
+    char *ipv4_addr;          ///< Client's IP (dynamically created by strdup, careful when freeing it)
+    char hostname[HOSTNAME_MAX_SIZE];          ///< Client host name
+    char service[SERVICE_MAX_SIZE];          ///< Service name
+    Netlogging_lvl lvl;          ///< Loglevel for the client
+} epoll_fd_ctx;
+
+
+typedef struct recv_cmd_t {
+    char *cmd;          ///< Commande to check
+    char *desc;          ///< Command's description
+    void(*const handler)(struct epoll_fd_ctx *p, char *buff, ssize_t recv_size);          ///< Fonction handler
+} recv_cmd_t;
+
 
 /**
  * \brief      Handle the new connections
@@ -41,8 +92,6 @@
  * \param[in]  events  The events
  */
 static void netlogg_handle_new_connection(struct epoll_fd_ctx *p, unsigned long events);
-
-
 
 
 /**
@@ -54,7 +103,6 @@ static void netlogg_handle_new_connection(struct epoll_fd_ctx *p, unsigned long 
 static void netlogg_handle_comm(struct epoll_fd_ctx *p, unsigned long events);
 
 
-
 /**
  * \brief      Send a message to all connected clients
  *
@@ -62,8 +110,6 @@ static void netlogg_handle_comm(struct epoll_fd_ctx *p, unsigned long events);
  * \param[in]  events  The events
  */
 static void netlogg_send_to_all_connected_clients(struct epoll_fd_ctx *p, unsigned long events);
-
-
 
 
 /**
@@ -156,6 +202,14 @@ static void handle_client_list(struct epoll_fd_ctx *p, char *buff, ssize_t recv_
 
 
 /**
+ * \brief      Get the number of connected clients
+ *
+ * \return     Number of connected clients to the logger
+ */
+static int32_t netlogg_nb_connected_clients(void);
+
+
+/**
  * Variable contenant le nom du programme
  */
 static char     *gProgname          = NULL;
@@ -214,21 +268,19 @@ static epoll_fd_ctx     netlogger_ctx[] =
 };
 
 
-int8_t netlogg_init(const char      *progname,
-                    uint16_t        port,
-                    Netlogging_lvl  dft_lvl
-                    )
+void* netlogg_init(void * args)
 {
     int     res         = -1;
     int     reuseAddr   = 1;
     struct epoll_event ep_ev;
     struct sockaddr_in sock_tcp_in;
     int     sv[2]       = {-1, -1};
+    Netlogging_args* n_args = (Netlogging_args*) args;
 
 
     // Set global variables
-    gProgname   = strdup(progname);
-    gLvl        = dft_lvl;
+    gProgname   = strdup(n_args->progname);
+    gLvl        = n_args->dft_lvl;
 
 
     // Create epoll file descriptor
@@ -256,7 +308,7 @@ int8_t netlogg_init(const char      *progname,
 
     // TCP IP / port / interfaces
     sock_tcp_in.sin_family      = AF_INET;
-    sock_tcp_in.sin_port        = htons(port);
+    sock_tcp_in.sin_port        = htons(n_args->port);
     sock_tcp_in.sin_addr.s_addr = htonl(INADDR_ANY);
 
 
@@ -318,13 +370,6 @@ int8_t netlogg_init(const char      *progname,
         assert(res != -1);
     }
 
-    return (0);
-}
-
-
-
-void netlogg_start(void)
-{
     for ( ; ; )
     {
         int     timeout             = -1;
@@ -369,7 +414,6 @@ void netlogg_start(void)
         levents = realloc(levents, 0);
     }
 }
-
 
 
 int8_t netlogg_send(const char              *file,
@@ -456,14 +500,7 @@ int8_t netlogg_send(const char              *file,
 
 
 
-void netlogg_change_loglevel(Netlogging_lvl new_lvl)
-{
-    gLvl = new_lvl;
-}
-
-
-
-int32_t netlogg_nb_connected_clients(void)
+static int32_t netlogg_nb_connected_clients(void)
 {
     uint8_t         i = 0;
     uint32_t        nb_connected_clients = 0;
@@ -871,6 +908,4 @@ static void handle_client_list(struct epoll_fd_ctx  *p,
             NETLOGG_BACK(p->fd, NETLOGG_INFO, "Client %d: %s (%s:%s)", i + 1 - EPOLL_FD_SEND0, netlogger_ctx[i].hostname, netlogger_ctx[i].ipv4_addr, netlogger_ctx[i].service);
         }
     }
-
-    netlogg_change_loglevel(NETLOGG_DEBUG);
 }

@@ -18,5 +18,5 @@ libnetlogging_la_LDFLAGS  = $(AM_LDFLAGS)
 ## TODO:2004 you can substitute like above.
 bin_PROGRAMS = netlogging
 netlogging_SOURCES  = netlogging.h netlogging.c main.c
-netlogging_CFLAGS   = $(AM_CFLAGS)
-netlogging_LDFLAGS  = $(AM_LDFLAGS)
+netlogging_CFLAGS   = $(AM_CFLAGS) -pthread
+netlogging_LDFLAGS  = $(AM_LDFLAGS) -lpthread

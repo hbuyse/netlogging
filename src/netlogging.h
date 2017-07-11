@@ -15,12 +15,22 @@
 extern "C" {
 #endif
 
+typedef enum Netlogging_lvl {
+    NETLOGG_CRIT    = 0,
+    NETLOGG_ERROR,
+    NETLOGG_WARN,
+    NETLOGG_INFO,
+    NETLOGG_DEBUG,
+    NETLOGG_LVLS
+} Netlogging_lvl;
 
 
-#define BUFF_SIZE_MAX         4096
-#define HOSTNAME_MAX_SIZE     256
-#define SERVICE_MAX_SIZE      256
-#define DESCRIPTION_MAX_SIZE  1024
+typedef struct {
+    const char      *progname;
+    uint16_t        port;
+    Netlogging_lvl  dft_lvl;
+} Netlogging_args;
+
 
 /**
  * \brief      Send a message through
@@ -34,71 +44,14 @@ extern "C" {
 #define NETLOGG(...)        netlogg_send(__FILE__, __LINE__, -1, __VA_ARGS__)
 
 
-typedef enum Netlogging_lvl {
-    NETLOGG_CRIT    = 0,
-    NETLOGG_ERROR,
-    NETLOGG_WARN,
-    NETLOGG_INFO,
-    NETLOGG_DEBUG,
-    NETLOGG_LVLS
-} Netlogging_lvl;
-
-
-typedef enum {
-    EPOLL_FD_LISTEN = 0,
-    EPOLL_FD_RECV,
-    EPOLL_FD_SEND0,
-    EPOLL_FD_SEND1,
-    EPOLL_FD_SEND2,
-    EPOLL_FD_SEND3,
-    EPOLL_FD_SEND4,
-    EPOLL_FD_SEND5,
-    EPOLL_FD_SEND6,
-    EPOLL_FD_SEND7,
-    EPOLL_FD_SEND8,
-    EPOLL_FD_SEND9,
-    EPOLL_FD_MAX,
-} epoll_evt_t;
-
-typedef struct {
-    int fd;          ///< Specific file descriptor
-    Netlogging_lvl lvl;          ///< Niveau de log du buffer a envoyer
-    char buff[BUFF_SIZE_MAX];          ///< Buffer a envoyer
-} internal_buff;
-
 /**
- * \struct REC_fdContext
- * \brief Définition du contexte des événements de la boucle epoll
- */
-typedef struct epoll_fd_ctx {
-    int fd;          ///< Descripteur de l'événement
-    void (*const handler)(struct epoll_fd_ctx *p, unsigned long events);          ///< Gestionnaire dédié à une cause de réveil de la boucle epoll du module d'enregistrement
-    char description[DESCRIPTION_MAX_SIZE];          /// Description of the handler
-    char *ipv4_addr;          ///< Client's IP (dynamically created by strdup, careful when freeing it)
-    char hostname[HOSTNAME_MAX_SIZE];          ///< Client host name
-    char service[SERVICE_MAX_SIZE];          ///< Service name
-    Netlogging_lvl lvl;          ///< Loglevel for the client
-} epoll_fd_ctx;
-
-
-
-typedef struct recv_cmd_t {
-    char *cmd;          ///< Commande to check
-    char *desc;          ///< Command's description
-    void(*const handler)(struct epoll_fd_ctx *p, char *buff, ssize_t recv_size);          ///< Fonction handler
-} recv_cmd_t;
-
-
-/**
- * \brief      Initiate the logging system
+ * \brief      Initiate the logging system and start it
  *
- * \param[in]  progname  The program name
- * \param[in]  port      The port for the TCP interface
- * \param[in]  dft_lvl   The default level
+ * \param[in]  args The thread arguments
  *
  * \return     Error code
  */
-int8_t netlogg_init(const char *progname, uint16_t port, Netlogging_lvl dft_lvl);
+void* netlogg_init(void* args);
 
 
 void netlogg_start(void);
@@ -121,22 +74,6 @@ int8_t netlogg_send(const char              *file,
                     const Netlogging_lvl    lvl,
                     const char              *format,
                     ...);
-
-
-/**
- * \brief      Change the displayed logging level
- *
- * \param[in]  new_lvl  The new logging level
- */
-void netlogg_change_loglevel(Netlogging_lvl new_lvl);
-
-
-/**
- * \brief      Get the number of connected clients
- *
- * \return     Number of connected clients to the logger
- */
-int32_t netlogg_nb_connected_clients(void);
 
 
 #ifdef __cplusplus

@@ -4,6 +4,7 @@
 #include <signal.h>          // sigaction, sigemptyset, sigaction
 #include <string.h>          // strcpy
 #include <stdlib.h>          // free
+#include <pthread.h>          // pthread_t, pthread_create, pthread_join
 
 #include "netlogging.h"
 
@@ -60,8 +61,14 @@ int main(int        argc,
          char const *argv[]
          )
 {
-    struct sigaction     sa;
+    pthread_t th;
+    Netlogging_args args = {
+        .progname = argv[0],
+        .port = PORT,
+        .dft_lvl = NETLOGG_DEBUG
+    };
 
+    struct sigaction     sa;
 
     // Install the SEGFAULT handler
     sa.sa_handler   = (void *) dump_backtrace;
@@ -69,9 +76,17 @@ int main(int        argc,
     sa.sa_flags     = SA_RESTART;
     sigaction(SIGSEGV, &sa, NULL);
 
-    netlogg_init(argv[0], PORT, NETLOGG_DEBUG);
+    if (pthread_create( &th, NULL, netlogg_init, (void*) &args) != 0)
+    {
+        fprintf(stderr, "%s\n", __FUNCTION__);
+    }
 
-    netlogg_start();
+    for (int i = 0 ; ; i++ )
+    {
+        NETLOGG(NETLOGG_INFO, "i = %d", i);
+        sleep(1);
+    }
+
 
     return (0);
 }
